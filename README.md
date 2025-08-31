@@ -162,23 +162,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Streamlit** for the amazing web framework
 - **Microsoft** for the DialogRPT model
 
-## 📞 Support
-
-If you have any questions or need help:
-
-- 📧 Email: your-email@example.com
-- 🐛 [Create an Issue](https://github.com/your-username/fake-guard/issues)
-- 💬 [Discussion Forum](#)
-
-## 🔮 Roadmap
-
-- [ ] Multi-model ensemble for improved accuracy
-- [ ] Batch processing for multiple files
-- [ ] API endpoint for integration
-- [ ] Mobile application version
-- [ ] Real-time webcam deepfake detection
-- [ ] Advanced analytics dashboard
-
 ---
 
 <div align="center">
