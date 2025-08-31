@@ -10,7 +10,7 @@
 
 A powerful web application that detects AI-generated content in text and videos using advanced machine learning models.
 
-[🚀 Live Demo](#) | [📖 Documentation](#) | [🐛 Report Bug](#)
+
 
 </div>
 
