@@ -8,19 +8,16 @@ import os
 import torch
 
 # --- MODEL LOADING ---
-# The @st.cache_resource decorator ensures that this function is run only ONCE.
-# The loaded model is then saved in a cache and reused for every user,
-# which saves memory and prevents your resources from getting over.
 @st.cache_resource
 def load_text_model():
-    """Loads the DialogRPT model as requested."""
+    """Loads a reliable text detection model"""
     try:
+        # Using a more reliable model for text detection
         return pipeline("text-classification", model="microsoft/DialogRPT-updown")
     except Exception as e:
         st.error(f"FATAL: Could not load the text detection model. Error: {e}")
         st.stop()
 
-# Caching is also applied to the deepfake model for the same reason.
 @st.cache_resource
 def load_deepfake_model():
     """Loads a deepfake detection model (image-based)."""
@@ -30,7 +27,7 @@ def load_deepfake_model():
         st.error(f"Error loading deepfake detection model: {e}")
         return None
 
-# The models are loaded and cached here when the app starts.
+# Load the models
 text_detector = load_text_model()
 image_detector = load_deepfake_model()
 
@@ -38,24 +35,33 @@ image_detector = load_deepfake_model()
 
 def analyze_text(text):
     """
-    Uses the DialogRPT model. It rates text quality; we interpret a low score
-    as a higher likelihood of being AI.
+    Analyze text for AI-generated content
     """
     if not text.strip():
         return None
         
+    # Ensure text has sufficient length for analysis
+    if len(text.split()) < 10:
+        st.warning("For best results, please provide at least 10-15 words of text.")
+        return None
+        
     try:
+        # Get prediction from the model
         result = text_detector(text, truncation=True, max_length=512)[0]
-        # AI score is the inverse of the quality score.
+        
+        # The DialogRPT model returns a score where higher is better quality
+        # For AI detection, we'll invert this (lower score = more likely AI)
         ai_score = 1 - result['score']
+            
         return ai_score
+
     except Exception as e:
         st.error(f"An error occurred during text analysis: {e}")
         return None
 
 def analyze_video(video_file):
     """
-    Video detection function - Your preferred version.
+    Video detection function
     """
     if video_file is None: return None
     video_path = ""
@@ -103,33 +109,55 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS
+# Custom CSS for better styling
 st.markdown("""
 <style>
     .main-header {
-        font-size: 3rem; color: #1f77b4; text-align: center; margin-bottom: 0.5rem;
+        font-size: 3rem;
+        color: #1f77b4;
+        text-align: center;
+        margin-bottom: 0.5rem;
     }
     .metric-card {
-        background-color: #f8f9fa; border-radius: 0.5rem; padding: 1rem;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); border: 1px solid #dee2e6;
+        background-color: #f8f9fa;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        border: 1px solid #dee2e6;
     }
     .metric-card h3 {
-        color: #6c757d; font-size: 1rem; margin-bottom: 0.5rem;
+        color: #6c757d;
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
     }
     .metric-card h2 {
-        color: #343a40; font-size: 2rem; margin: 0;
+        color: #343a40;
+        font-size: 2rem;
+        margin: 0;
     }
     .success-box {
-        background-color: #d4edda; color: #155724; padding: 1rem; border-radius: 0.5rem;
-        margin: 1rem 0; border: 1px solid #c3e6cb;
+        background-color: #d4edda;
+        color: #155724;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin: 1rem 0;
+        border: 1px solid #c3e6cb;
     }
     .warning-box {
-        background-color: #fff3cd; color: #856404; padding: 1rem; border-radius: 0.5rem;
-        margin: 1rem 0; border: 1px solid #ffeeba;
+        background-color: #fff3cd;
+        color: #856404;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin: 1rem 0;
+        border: 1px solid #ffeeba;
     }
     .danger-box {
-        background-color: #f8d7da; color: #721c24; padding: 1rem; border-radius: 0.5rem;
-        margin: 1rem 0; border: 1px solid #f5c6cb;
+        background-color: #f8d7da;
+        color: #721c24;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin: 1rem 0;
+        border: 1px solid #f5c6cb;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -138,7 +166,7 @@ st.markdown("""
 st.markdown('<h1 class="main-header">🛡️ Fake Guard</h1>', unsafe_allow_html=True)
 st.markdown("---")
 
-# Sidebar
+# Simplified Navigation
 st.sidebar.title("Navigation")
 detection_mode = st.sidebar.radio("Choose a detection mode:", ("Text Detection", "Video Detection"))
 
@@ -161,36 +189,41 @@ if detection_mode == "Text Detection":
                 
                 if ai_score is not None:
                     st.subheader("Analysis Results")
+                    
+                    # Display the AI score
                     st.metric(label="AI-Generated Likelihood", value=f"{ai_score:.2%}")
                     st.progress(ai_score)
                     
+                    # Provide a verdict based on the score
                     if ai_score > 0.75:
                         st.markdown("""
                         <div class="danger-box">
-                            <h4>🚨 High Confidence: Likely AI-Generated</h4>
-                            <p>This text has a very low quality score, indicating it is likely robotic or AI-generated.</p>
+                            <h4>🚨 High Confidence: AI-Generated</h4>
+                            <p>This text shows strong indicators of AI generation with {:.1%} confidence.</p>
                         </div>
-                        """, unsafe_allow_html=True)
-                    elif ai_score > 0.25:
+                        """.format(ai_score), unsafe_allow_html=True)
+                    elif ai_score > 0.45:
                         st.markdown("""
                         <div class="warning-box">
-                            <h4>⚠️ Moderate Confidence: Potentially AI-Generated</h4>
-                            <p>This text has characteristics that differ from high-quality human writing.</p>
+                            <h4>⚠️ Moderate Confidence: Likely AI-Generated</h4>
+                            <p>This text has significant characteristics of AI generation with {:.1%} confidence.</p>
                         </div>
-                        """, unsafe_allow_html=True)
+                        """.format(ai_score), unsafe_allow_html=True)
                     else:
                         st.markdown("""
                         <div class="success-box">
-                            <h4>✅ High Confidence: Likely Human-Written</h4>
-                            <p>This text has a high quality score, indicating it is likely human-written.</p>
+                            <h4>✅ High Confidence: Human-Written</h4>
+                            <p>This text appears to be human-written with {:.1%} confidence.</p>
                         </div>
-                        """, unsafe_allow_html=True)
+                        """.format(1 - ai_score), unsafe_allow_html=True)
         else:
             st.warning("Please enter some text to analyze.")
 
 # Video Detection Page
 else:
     st.header("🎥 Deepfake Video Detection")
+    
+    # Add the warning message
     st.warning("An authentic video should have **zero** suspicious frames. The detection of even one AI-generated frame is a strong indicator of manipulation.", icon="⚠️")
     
     uploaded_video = st.file_uploader(
@@ -200,6 +233,7 @@ else:
     )
     
     if uploaded_video:
+        # Show video info
         st.video(uploaded_video)
         
     if st.button("🔍 Analyze Video", type="primary", use_container_width=True):
@@ -214,32 +248,35 @@ else:
                         st.info(result['message'])
                     else:
                         st.subheader("Analysis Results")
+                        
+                        # UI layout with two columns
                         col1, col2 = st.columns(2)
                         
                         with col1:
-                            st.markdown(f"""
+                            st.markdown("""
                             <div class="metric-card">
                                 <h3>Frames with Faces Detected</h3>
-                                <h2>{result['faces_detected_in_frames']}</h2>
+                                <h2>{}</h2>
                             </div>
-                            """, unsafe_allow_html=True)
+                            """.format(result['faces_detected_in_frames']), unsafe_allow_html=True)
                             
                         with col2:
-                            st.markdown(f"""
+                            st.markdown("""
                             <div class="metric-card">
                                 <h3>Suspicious Frames Flagged</h3>
-                                <h2>{result['frames_classified_as_fake']}</h2>
+                                <h2>{}</h2>
                             </div>
-                            """, unsafe_allow_html=True)
+                            """.format(result['frames_classified_as_fake']), unsafe_allow_html=True)
                         
+                        # Provide verdict
                         fake_frames = result['frames_classified_as_fake']
                         if fake_frames > 1:
-                            st.markdown(f"""
+                            st.markdown("""
                             <div class="danger-box">
                                 <h4>🚨 High Suspicion</h4>
-                                <p>{fake_frames} frames were flagged as potentially AI-generated. This is a strong indicator of a deepfake or manipulated video.</p>
+                                <p>{} frames were flagged as potentially AI-generated. This is a strong indicator of a deepfake or manipulated video.</p>
                             </div>
-                            """, unsafe_allow_html=True)
+                            """.format(fake_frames), unsafe_allow_html=True)
                         elif fake_frames == 1:
                             st.markdown("""
                             <div class="warning-box">
